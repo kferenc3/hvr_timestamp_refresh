@@ -1,0 +1,14 @@
+[project]
+name = "hvr-timestamp-refresh"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "dotenv>=0.9.9",
+    "pyhvr",
+    "pytz>=2026.1.post1",
+]
+
+[tool.uv.sources]
+pyhvr = { git = "https://github.com/fivetran/pyhvr.git" }
