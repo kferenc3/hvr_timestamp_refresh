@@ -7,8 +7,9 @@ requires-python = ">=3.9"
 dependencies = [
     "dotenv>=0.9.9",
     "pyhvr",
+    "pyodbc>=5.3.0",
     "pytz>=2026.1.post1",
 ]
 
 [tool.uv.sources]
-pyhvr = { git = "https://github.com/fivetran/pyhvr.git" }
+pyhvr = { git = "https://github.com/kferenc3/pyhvr.git" }
