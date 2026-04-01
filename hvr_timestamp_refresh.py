@@ -22,7 +22,6 @@ class Options:
   ddl_check = 'no'
   ehvr_config = ''
   execution_context = ''
-  hana_timezone = 'UTC'
   hub = ''
   location = ''
   me = ''
@@ -33,7 +32,7 @@ class Options:
   path_block_file = ''
   path_state_file = ''
   retries = 0
-  rewind_minutes = 1
+  # rewind_minutes = 1
   source_loc = ''
   state_directory = ''
   state_file = ''
@@ -44,7 +43,7 @@ class Options:
   ts_column = ''
   ts_low_watermark = None
   uri = ''
-  remove_block = 'no'
+  remove_block = False
   verify = True
 
 options = Options()
@@ -53,10 +52,6 @@ options = Options()
 class ExecutionError(Exception):
   pass
 
-def version_check():
-
-  global python3
-  python3 = sys.version_info[0] == 3
 
 def print_raw(_msg, tgt= None):
 
@@ -111,8 +106,6 @@ def load_environment():
     options.retries = int(evars['HVR_JOB_RETRIES'])
   if 'HVR_VAR_TS_LOW_WATERMARK' in evars:
     options.ts_low_watermark = (evars['HVR_VAR_TS_LOW_WATERMARK']).replace("'","")
-  if 'HVR_HUB' in evars:
-    options.hub = evars['HVR_HUB']
   if 'HVR_URI' in evars:
     options.uri = evars['HVR_URI']
   if 'HVR_USERNAME' in evars:
@@ -128,53 +121,43 @@ def print_environment():
     return
   trace(2, "============================================")
   env = os.environ
-  if python3:
-    for key, value in env.items():
-      if key.find('HVR') != -1:
-        trace(2, "{} = {}", key, value)
-  else:
-    for key, value in env.iteritems():
-      if key.find('HVR') != -1:
-        trace(2, "{} = {}", key, value)
+  for key, value in env.items():
+    if key.find('HVR') != -1:
+      trace(2, "{} = {}", key, value)
   trace(2, "============================================")
 
 def print_options():
 
-  if options.trace < 1:
+  if options.trace < 2:
     return
-  trace(1, "============================================")
-  trace(1, "channel = {}", options.channel) 
-  # trace(1, "context = {}", options.context)
-  trace(1, "context_initial = {}", options.context_initial)
-  trace(1, "context_incremental = {}", options.context_incremental)
-  # trace(1, "context_other = {}", options.context_other)
-  trace(1, "ddl_check = {}", options.ddl_check)
-  trace(1, "ehvr_config = {}", options.ehvr_config) 
-  trace(1, "execution_context = {}", options.execution_context) 
-  trace(1, "hana_timezone = {}", options.hana_timezone) 
-  trace(1, "hub = {}", options.hub) 
-  # trace(1, "location = {}", options.location) 
-  trace(1, "me = {}", options.me) 
-  trace(1, "mode = {}", options.mode) 
-  trace(1, "username = {}", options.username) 
-  trace(1, "parallel_sessions = {}", options.parallel_sessions) 
-  trace(1, "path_block_file = {}", options.path_block_file) 
-  trace(1, "path_state_file = {}", options.path_state_file) 
-  trace(1, "retries = {}", options.retries) 
-  trace(1, "rewind_minutes = {}", options.rewind_minutes) 
-  trace(1, "source_loc = {}", options.source_loc) 
-  trace(1, "state_directory = {}", options.state_directory) 
-  trace(1, "state_file = {}", options.state_file) 
-  trace(1, "target_dsn = {}", options.target_dsn)
-  trace(1, "target_loc = {}", options.target_loc)
-  trace(1, "target_table = {}", options.target_table)
-  trace(1, "trace = {}", options.trace)
-  trace(1, "ts_column = {}", options.ts_column)
-  # trace(1, "ts_high_watermark = {}", options.ts_high_watermark)
-  trace(1, "ts_low_watermark = {}", options.ts_low_watermark)
-  trace(1, "uri = {}", options.uri)
-  trace(1, "remove_block = {}", options.remove_block)
-  trace(1, "============================================")
+  trace(2, "============================================")
+  trace(2, "channel = {}", options.channel) 
+  trace(2, "context_initial = {}", options.context_initial)
+  trace(2, "context_incremental = {}", options.context_incremental)
+  trace(2, "ddl_check = {}", options.ddl_check)
+  trace(2, "ehvr_config = {}", options.ehvr_config) 
+  trace(2, "execution_context = {}", options.execution_context) 
+  trace(2, "hub = {}", options.hub) 
+  trace(2, "me = {}", options.me) 
+  trace(2, "mode = {}", options.mode) 
+  trace(2, "username = {}", options.username) 
+  trace(2, "parallel_sessions = {}", options.parallel_sessions) 
+  trace(2, "path_block_file = {}", options.path_block_file) 
+  trace(2, "path_state_file = {}", options.path_state_file) 
+  trace(2, "retries = {}", options.retries) 
+  # trace(2, "rewind_minutes = {}", options.rewind_minutes) 
+  trace(2, "source_loc = {}", options.source_loc) 
+  trace(2, "state_directory = {}", options.state_directory) 
+  trace(2, "state_file = {}", options.state_file) 
+  trace(2, "target_dsn = {}", options.target_dsn)
+  trace(2, "target_loc = {}", options.target_loc)
+  trace(2, "target_table = {}", options.target_table)
+  trace(2, "trace = {}", options.trace)
+  trace(2, "ts_column = {}", options.ts_column)
+  trace(2, "ts_low_watermark = {}", options.ts_low_watermark)
+  trace(2, "uri = {}", options.uri)
+  trace(2, "remove_block = {}", options.remove_block)
+  trace(2, "============================================")
 
 def usage(extra):
 
@@ -271,7 +254,6 @@ def get_options(argv):
   options.state_file = options.channel + ".refr_state"
   options.path_block_file = options.state_directory + "/" + options.channel + ".block"
   options.path_state_file = options.state_directory + "/" + options.state_file
-  print(os.path.dirname(options.path_block_file))
   os.makedirs(os.path.dirname(options.path_block_file), exist_ok=True)
 
 def validate_options():
@@ -284,8 +266,14 @@ def validate_options():
     usage("Password is mandatory")
   if not options.uri:
     usage("URL to LDP end point must be provided")
+  if not options.source_loc:
+    usage("Source location must be provided with -r")
+  if not options.target_loc:
+    usage("Target location must be provided with -w")
   if options.mode not in ['refresh','dry_run']:
     usage('Missing valid mode: one of [refresh, dry_run]')
+  if not options.target_dsn:
+    usage('Target DSN must be provided with -D')
   if options.target_dsn and not options.ts_column:
     usage("-C (timestamp column) is required when -D (target DSN) is provided")
   if options.target_dsn and not options.target_table:
@@ -417,7 +405,7 @@ def ldp():
   for a in actions:
 
     property_type = a.get('type', None)
-    scope = a.get('loc_scope', None)
+    # scope = a.get('loc_scope', None)
     params = a.get('params')
 
     if (property_type in ["Restrict"]) and (params.get('Context') in [options.context_initial,options.context_incremental]):
@@ -501,10 +489,6 @@ def ldp():
       report("WARNING: Low watermark from target does not match existing low watermark from state file: {ts}".format(
         ts = existing_low_watermark.isoformat(),
       ))
-
-  else:
-    usage("Target DSN must be provided to query for max timestamp on target")
-    exit(1)
 
   # 3. Create refresh job with the appropriate context
   if options.execution_context == options.context_incremental:
@@ -605,43 +589,52 @@ def ldp():
 
   # 5. Poll the api for job status until completion, and if the job fails create a block file to prevent further refresh attempts until the issue is investigated and resolved; 
     #  If the job succeeds remove any existing block file and update the state file with the new watermark extracted from target
-  refr_job = refresh.get('job', None)
+  refr_job = refresh.get('job', None) if refresh else None
+  finished = False
   if refr_job:
     check_count = 3
+    sleep_seconds = 30
     while check_count > 0:
       check_count -= 1
       job = hvr_client.get_hubs_jobs(hub = options.hub, channel = options.channel, job = refr_job)
       job_status = job[refr_job].get('state', None)
       
-
       if job_status in ['PENDING']:
+        finished = True
         break
 
       elif job_status in ['FAILED', 'RETRY']:
+        finished = True
         with open(options.path_block_file, "w") as f:
           f.write("Refresh job failed with status " + job_status + "; block file created to prevent further refresh attempts until the issue is investigated and resolved")
         report("Refresh job failed with status " + job_status + "; created block file " + options.path_block_file + " to prevent further refresh attempts until the issue is investigated and resolved")
         exit(1)
 
-      trace(1, "Job {} is still in {} state; sleeping for 30 seconds before checking again", refr_job, job_status)
-      sleep(30)
+      trace(1, "Job {} is still in {} state; sleeping for {} seconds before checking again", refr_job, job_status, sleep_seconds)
+      sleep(sleep_seconds)
+      sleep_seconds *= 1.5
 
-  # Once the job is completed, update the state file with the new low watermark from target, and remove any existing block file to unblock future refreshes
-  new_state = {"low_watermark": get_max_target_timestamp().isoformat(), "retries": options.retries}
-  write_json_to_file(new_state, options.path_state_file)
+  if finished:
+    # Once the job is completed, update the state file with the new low watermark from target, and remove any existing block file to unblock future refreshes
+    new_low_watermark = get_max_target_timestamp()
+    if new_low_watermark:
+      new_state = {"low_watermark": new_low_watermark.isoformat(), "retries": options.retries}
+    else:
+      raise Exception("Unable to retrieve max timestamp from target after job completion; manual intervention may be required to unblock refreshes and update the state file with the correct watermark")
+    write_json_to_file(new_state, options.path_state_file)
 
-  if os.path.isfile(options.path_block_file):
-        os.remove(options.path_block_file)
-        report("Removed existing block file " + options.path_block_file + " as job is in " + job_status + " state and completed successfully")
+    if os.path.isfile(options.path_block_file):
+          os.remove(options.path_block_file)
+          report("Removed existing block file " + options.path_block_file + " as job is in " + job_status + " state and completed successfully")
+  else:
+    report("Job did not reach a terminal state within the expected time; manual intervention may be required to check job status and unblock refreshes if the job is completed or failed")
+
   
 def main(argv):
-  version_check()
   get_options(argv)
   validate_options()
-
-  ldp()
-
   print_options()
+  ldp()
 
 if __name__ == "__main__":
 
