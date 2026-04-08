@@ -45,13 +45,13 @@ class Options:
   uri = ''
   remove_block = False
   verify = True
+  upsert_refresh = True
 
 options = Options()
 
 ##### Support functions #########################################################
 class ExecutionError(Exception):
   pass
-
 
 def print_raw(_msg, tgt= None):
 
@@ -114,6 +114,8 @@ def load_environment():
     options.password = evars['HVR_PASSWORD']
   if 'HVR_VERIFY_SSL' in evars:
     options.verify = False if evars['HVR_VERIFY_SSL'].lower() == 'false' else True
+  if 'HVR_UPSERT_REFRESH' in evars:
+    options.upsert_refresh = False if evars['HVR_UPSERT_REFRESH'].lower() == 'false' else True
 
 def print_environment():
 
@@ -308,8 +310,8 @@ def get_max_target_timestamp():
   """
 
   trace(1, "Querying target '{}' for MAX({}) FROM {}", options.target_dsn, options.ts_column, options.target_table)
-
-  conn = pyodbc.connect(f"DSN={options.target_dsn}", autocommit=True)
+  key_passphrase = os.getenv('SF_KEY_PASSPHRASE', '')
+  conn = pyodbc.connect(f"DSN={options.target_dsn};PRIV_KEY_FILE_PWD={key_passphrase}", autocommit=True)
 
   try:
 
@@ -491,6 +493,7 @@ def ldp():
       ))
 
   # 3. Create refresh job with the appropriate context
+  
   if options.execution_context == options.context_incremental:
     if options.ddl_check == 'yes':
 
@@ -510,7 +513,6 @@ def ldp():
             "ts_low_watermark": "'" + new_low_watermark.isoformat() + "'"
             },
         "granularity": "bulk",
-        "upsert": True,
         "parallel_sessions": options.parallel_sessions,
         "contexts": [options.execution_context]
       }
@@ -525,7 +527,6 @@ def ldp():
             "ts_low_watermark": "'" + new_low_watermark.isoformat() + "'"
             },
         "granularity": "bulk",
-        "upsert": True,
         "parallel_sessions": options.parallel_sessions,
         "contexts": [options.execution_context]
       }
@@ -550,7 +551,6 @@ def ldp():
             "recreate_if_mismatch": True
           },
         "granularity": "bulk",
-        "upsert": True,
         "parallel_sessions": options.parallel_sessions
       }
     else:
@@ -561,11 +561,12 @@ def ldp():
         "target_loc": options.target_loc,
         "tables": table_list,
         "granularity": "bulk",
-        "upsert": True,
         "parallel_sessions": options.parallel_sessions
       }
 
   # 4. Trigger the refresh
+  if options.upsert_refresh:
+    refresh_data["upsert"] = True
   if options.mode != 'dry_run':
     try:
       refresh = hvr_client.post_hubs_channels_refresh( hub = options.hub
@@ -629,7 +630,6 @@ def ldp():
   else:
     report("Job did not reach a terminal state within the expected time; manual intervention may be required to check job status and unblock refreshes if the job is completed or failed")
 
-  
 def main(argv):
   get_options(argv)
   validate_options()

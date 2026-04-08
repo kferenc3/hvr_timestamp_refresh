@@ -37,15 +37,15 @@ A **block file** prevents concurrent or overlapping refresh attempts. The block 
 ## How It Works
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  1. Query target DB  →  MAX(ts_column) FROM target_table        │
+┌───────────────────────────────────────────────────────────────────────┐
+│  1. Query target DB  →  MAX(ts_column) FROM target_table              │
 │  2. Update Restrict action  →  ts_column > {hvr_var_ts_low_watermark} │
-│  3. Determine context  →  initial (no state file) or incremental │
-│  4. Create HVR refresh job with context_variables               │
-│  5. Create block file                                           │
-│  6. Poll job status until PENDING / FAILED / RETRY              │
-│  7. On success: update state file, remove block file            │
-└─────────────────────────────────────────────────────────────────┘
+│  3. Determine context  →  initial (no state file) or incremental      │
+│  4. Create HVR refresh job with context_variables                     │
+│  5. Create block file                                                 │
+│  6. Poll job status until PENDING / FAILED / RETRY                    │
+│  7. On success: update state file, remove block file                  │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Execution Contexts
@@ -74,7 +74,7 @@ The target database must be reachable via an ODBC DSN configured on the host run
 
 | Package | Version | Source | Purpose |
 |---|---|---|---|
-| `pyhvr` | latest | [GitHub (kferenc3/pyhvr)](https://github.com/kferenc3/pyhvr) | HVR 6 REST API client |
+| `pyhvr` | latest | [GitHub (kferenc3/pyhvr)](https://github.com/kferenc3/pyhvr) | HVR 6 REST API client (fork of the original client) |
 | `pyodbc` | ≥ 5.3.0 | PyPI | ODBC connectivity to the target database |
 | `dotenv` | ≥ 0.9.9 | PyPI | Load environment variables from a `.env` file |
 | `pytz` | ≥ 2026.1 | PyPI | Timezone utilities |
@@ -166,6 +166,8 @@ The script reads connection details and runtime behaviour from **environment var
 | `HVR_VAR_TS_LOW_WATERMARK` | No | Override low-watermark timestamp. Normally derived automatically from the target. |
 | `HVR_VERIFY_SSL` | No | Set to `false` to disable SSL certificate verification (default: `true`). |
 | `REQUESTS_CA_BUNDLE` | No | Path to a CA bundle file for custom certificate authorities when using HTTPS. |
+| `HVR_UPSERT_REFRESH` | No | Option to turn off upsert style refresh (default: `True`) |
+| `SF_KEY_PASSPHRASE` | Yes | Password to the Snowflake private key file |
 
 ### Example `.env`
 
@@ -176,6 +178,8 @@ HVR_URI=https://hvr.example.com:4340/
 HVR_USERNAME=admin
 HVR_PASSWORD=secret
 HVR_VERIFY_SSL=true
+HVR_UPSERT_REFRESH=false
+SF_KEY_PASSPHRASE=secret
 ```
 
 ---
