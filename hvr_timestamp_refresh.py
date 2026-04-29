@@ -41,6 +41,7 @@ class Options:
   target_table = ''
   trace = 2
   ts_column = ''
+  ts_increment = 'auto'
   ts_low_watermark = None
   uri = ''
   remove_block = False
@@ -156,6 +157,7 @@ def print_options():
   trace(2, "target_table = {}", options.target_table)
   trace(2, "trace = {}", options.trace)
   trace(2, "ts_column = {}", options.ts_column)
+  trace(2, "ts_increment = {}", options.ts_increment)
   trace(2, "ts_low_watermark = {}", options.ts_low_watermark)
   trace(2, "uri = {}", options.uri)
   trace(2, "remove_block = {}", options.remove_block)
@@ -186,6 +188,7 @@ def usage(extra):
     print_message("                                  [" + options.context_incremental + "] use for an incremental load")
     print_message("                        [-p parallelism] parallelism for the refresh job (defaults to 6; optional)")
     print_message("                        [-C timestamp column] column used to find the max replicated timestamp on target (required with -D)")
+    print_message("                        [-i timestamp increment] increment for the timestamp (seconds, milliseconds, microseconds, or auto; defaults to auto, which derives the increment based on the column scale of the timestamp column on target)")
     print_message("                        [-D target DSN] ODBC connection string to query max replicated timestamp from target")
     print_message("                        [-r source location (read)]")
     print_message("                        [-T target table] fully qualified target table (schema.table) to query for max timestamp (required with -D)")
@@ -222,7 +225,7 @@ def get_options(argv):
   if userargs:
     try:
       # opts, args = getopt.getopt(userargs, 'c:d:e:h:l:p:P:r:t:u:w:C:D:T:')
-      opts, args = getopt.getopt(userargs, 'd:e:p:r:t:w:C:D:T:b:')
+      opts, args = getopt.getopt(userargs, 'd:e:p:r:t:w:C:D:T:b:i:')
     except getopt.GetoptError as e:
       usage(str(e))
 
@@ -247,6 +250,11 @@ def get_options(argv):
         options.target_table = opt_val
       elif opt_key == '-b':
         options.remove_block = True if opt_val == 'yes' else False
+      elif opt_key == '-i':
+        if opt_val in ['seconds', 'milliseconds', 'microseconds', 'auto']:
+          options.ts_increment = opt_val
+        else:
+          report("Invalid value for -i option; using default 'microseconds'")
 
   trace(2, "Arguments {} {} {}", options.mode, options.channel, userargs)
   if userargs and args:
@@ -317,12 +325,14 @@ def get_max_target_timestamp():
 
     cursor = conn.cursor()
     cursor.execute("SELECT MAX({col}) FROM {tbl}".format(col=options.ts_column, tbl=options.target_table))
+    col_scale = cursor.description[0][5] or 6
     row = cursor.fetchone()
   except pyodbc.Error as e:
     sqlstate = e.args[0]
     if sqlstate == '42S02':
         trace(1, "Target table '{}' not found; treating as empty", options.target_table)
         options.ddl_check = 'yes'
+        col_scale = 6
         row = None
     else:
         raise 
@@ -343,7 +353,17 @@ def get_max_target_timestamp():
   if isinstance(max_ts, str):
     max_ts = datetime.datetime.fromisoformat(max_ts)
 
-  max_ts = max_ts + datetime.timedelta(microseconds=1)
+  if options.ts_increment != 'auto':
+    increment = datetime.timedelta(**{options.ts_increment: 1})
+  else:
+    if col_scale ==0:
+      increment = datetime.timedelta(seconds=1)
+    elif col_scale <= 3:
+      increment = datetime.timedelta(milliseconds=1)
+    else:
+      increment = datetime.timedelta(microseconds=1)
+  
+  max_ts = max_ts + increment
   trace(1, "Max timestamp on target: {}", max_ts.isoformat())
 
   return max_ts
@@ -431,6 +451,9 @@ def ldp():
   # pl.append({'loc_scope': 'SOURCE', 'table_scope': '*', 'type': 'Restrict', 'params': {'RefreshCondition': "{hana_load_timestamp} <= now()", 'Context': options.context_other}})
 
   pl.append({'loc_scope': 'SOURCE', 'table_scope': '*', 'type': 'Restrict', 'params': {'RefreshCondition': f"{options.ts_column} > {{hvr_var_ts_low_watermark}}", 'Context': options.context_incremental}})
+  
+  # Adding as a safeguard the condition 1=0 to prevent truncation of the target.
+  pl.append({'loc_scope': 'TARGET', 'table_scope': '*', 'type': 'Restrict', 'params': {'RefreshCondition': f"1=0", 'Context': options.context_incremental}})
 
   if options.mode != 'dry_run':
     hvr_client.patch_hubs_definition_channels_actions(
